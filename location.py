@@ -1,4 +1,4 @@
-#%% 
+# %%
 import yaml
 import pandas as pd
 import os
@@ -14,8 +14,9 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import LinearRegression
 from joblib import dump
+import plotly.express as px
 
-#%%
+# %%
 with open("config.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -36,9 +37,24 @@ connection_parameters = {
 session = Session.builder.configs(connection_parameters).create()
 session.add_packages("snowflake-snowpark-python", "numpy", "scikit-learn", "pandas")
 # %%
-df = session.table("yelp_business_pa").select("business_id").limit(10)
+df = session.sql("select * from yelp_business_pa")
 
 # %%
-df.show()
+df.columns
 
+# %% add map
+fig = px.scatter_mapbox(
+    df,
+    lat="LATITUDE",
+    lon="LONGITUDE",
+    hover_name="NAME",
+    hover_data=["STARS", "REVIEW_COUNT"],
+    color_discrete_sequence=["fuchsia"],
+    zoom=3,
+    height=300,
+)
+fig.update_layout(mapbox_style="open-street-map")
+fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+fig.update_layout(mapbox_bounds={"west": -80, "east": -70, "south": 39, "north": 41})
+fig.show()
 # %%
