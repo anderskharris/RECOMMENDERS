@@ -13,6 +13,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import LinearRegression
+from sklearn.cluster import DBSCAN
 from joblib import dump
 import plotly.express as px
 
@@ -36,15 +37,14 @@ connection_parameters = {
 
 session = Session.builder.configs(connection_parameters).create()
 session.add_packages("snowflake-snowpark-python", "numpy", "scikit-learn", "pandas")
-# %%
-df = session.sql("select * from yelp_business_pa")
 
 # %%
-df.columns
+
+restaurants = session.sql("select * from yelp_business_pa").to_pandas()
 
 # %% add map
 fig = px.scatter_mapbox(
-    df,
+    restaurants,
     lat="LATITUDE",
     lon="LONGITUDE",
     hover_name="NAME",
@@ -57,4 +57,28 @@ fig.update_layout(mapbox_style="open-street-map")
 fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
 fig.update_layout(mapbox_bounds={"west": -80, "east": -70, "south": 39, "north": 41})
 fig.show()
+
+# %% DBSCAN
+
+db = DBSCAN(eps=0.0005, min_samples=10).fit(restaurants[["LATITUDE", "LONGITUDE"]])
+labels = db.labels_
+
+
+# %%
+restaurants["LABEL"] = labels.astype(str)
+fig = px.scatter_mapbox(
+    restaurants,
+    lat="LATITUDE",
+    lon="LONGITUDE",
+    hover_name="NAME",
+    hover_data=["STARS", "REVIEW_COUNT"],
+    color=str("LABEL"),
+    zoom=3,
+    height=300,
+)
+fig.update_layout(mapbox_style="open-street-map")
+fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+fig.update_layout(mapbox_bounds={"west": -80, "east": -70, "south": 39, "north": 41})
+fig.show()
+
 # %%
