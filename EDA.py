@@ -36,8 +36,9 @@ connection_parameters = {
 session = Session.builder.configs(connection_parameters).create()
 session.add_packages("snowflake-snowpark-python", "numpy", "scikit-learn", "pandas")
 # %%
-df = session.sql('SELECT * FROM PURCHASE_DATA').to_pandas()
+df = session.table("yelp_business_pa").select("business_id").limit(10)
 
 # %%
-df.head()
+df.show()
+
 # %%
