@@ -43,6 +43,11 @@ session.add_packages("snowflake-snowpark-python", "numpy", "scikit-learn", "pand
 
 restaurants = session.sql("select * from yelp_business_pa").to_pandas()
 
+
+# %%
+# explore restaurant data
+restaurants.describe()
+
 # %% add map
 fig = px.scatter_mapbox(
     restaurants,
@@ -73,13 +78,13 @@ categories = pd.DataFrame(categories, columns=["Category"])
 categories = pd.DataFrame(
     categories.groupby(by=["Category"])["Category"]
     .count()
-    .sort_values(ascending=False),
-    columns=(["Category", "Count"]),
+    .sort_values(ascending=False)
+    .head(50)
 )
 
 # %%
 # onehotencode categories
-mlb = MultiLabelBinarizer(sparse_output=True)
+mlb = MultiLabelBinarizer(sparse_output=True, classes=list(categories.index))
 
 restaurants = restaurants.join(
     pd.DataFrame.sparse.from_spmatrix(
