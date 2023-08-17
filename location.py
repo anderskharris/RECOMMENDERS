@@ -16,6 +16,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.cluster import DBSCAN
 from joblib import dump
 import plotly.express as px
+from sklearn.preprocessing import MultiLabelBinarizer
 
 # %%
 with open("config.yaml", "r") as f:
@@ -48,8 +49,8 @@ fig = px.scatter_mapbox(
     lat="LATITUDE",
     lon="LONGITUDE",
     hover_name="NAME",
-    hover_data=["STARS", "REVIEW_COUNT"],
-    color_discrete_sequence=["fuchsia"],
+    hover_data=["STARS", "REVIEW_COUNT", "CITY"],
+    color=str("CITY"),
     zoom=3,
     height=300,
 )
@@ -58,27 +59,34 @@ fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
 fig.update_layout(mapbox_bounds={"west": -80, "east": -70, "south": 39, "north": 41})
 fig.show()
 
-# %% DBSCAN
+# %% turning categories string into list
+restaurants["CATEGORIES"] = (
+    restaurants["CATEGORIES"].str.replace('"', "").str.replace(" ", "").str.split(",")
+)
 
-db = DBSCAN(eps=0.0005, min_samples=10).fit(restaurants[["LATITUDE", "LONGITUDE"]])
-labels = db.labels_
-
+# %% looking at distribution of categories
+categories = []
+for i in restaurants["CATEGORIES"]:
+    for r in i:
+        categories.append(r)
+categories = pd.DataFrame(categories, columns=["Category"])
+categories = pd.DataFrame(
+    categories.groupby(by=["Category"])["Category"]
+    .count()
+    .sort_values(ascending=False),
+    columns=(["Category", "Count"]),
+)
 
 # %%
-restaurants["LABEL"] = labels.astype(str)
-fig = px.scatter_mapbox(
-    restaurants,
-    lat="LATITUDE",
-    lon="LONGITUDE",
-    hover_name="NAME",
-    hover_data=["STARS", "REVIEW_COUNT"],
-    color=str("LABEL"),
-    zoom=3,
-    height=300,
+# onehotencode categories
+mlb = MultiLabelBinarizer(sparse_output=True)
+
+restaurants = restaurants.join(
+    pd.DataFrame.sparse.from_spmatrix(
+        mlb.fit_transform(restaurants.pop("CATEGORIES")),
+        index=restaurants.index,
+        columns=mlb.classes_,
+    )
 )
-fig.update_layout(mapbox_style="open-street-map")
-fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
-fig.update_layout(mapbox_bounds={"west": -80, "east": -70, "south": 39, "north": 41})
-fig.show()
 
 # %%
