@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 import numpy as np
 import plotly.express as px
 import matplotlib.pyplot as plt
+import sklearn
+from sklearn.decomposition import TruncatedSVD
+from sklearn.metrics import accuracy_score
 
 
 # %%
@@ -33,20 +36,16 @@ connection_parameters = {
 session = Session.builder.configs(connection_parameters).create()
 session.add_packages("snowflake-snowpark-python", "numpy", "scikit-learn", "pandas")
 
-# %% in snowpark
-rvw = session.sql("select * from yelp_review_pa")
-rsts = rvw.group_by("BUSINESS_ID").count().select("BUSINESS_ID").distinct().collect()
-pvt_rvw = (
-    rvw.select("USER_ID", "BUSINESS_ID", "STARS")
-    .pivot("BUSINESS_ID", rsts)
-    .avg("STARS")
-)
-
-
-# %% in python
+# %% data
 rvw = session.sql(
-    "select USER_ID, BUSINESS_ID, avg(STARS) as STARS from yelp_review_pa_train group by USER_ID, BUSINESS_ID"
+    "select a.USER_ID, a.BUSINESS_ID, avg(a.STARS) - avg(b.AVG_STARS) as STARS from yelp_review_pa_train a LEFT JOIN (select USER_ID, avg(STARS) as AVG_STARS from yelp_review_pa_train group by USER_ID) b ON a.USER_ID = b.USER_ID group by a.USER_ID, a.BUSINESS_ID"
 ).to_pandas()
 pvt_rvw = rvw.pivot(index="USER_ID", columns="BUSINESS_ID", values="STARS")
+
+# %% SVD
+
+SVD = TruncatedSVD(n_components=20, algorithm="arpack")
+result_matrix = SVD.fit_transform(pvt_rvw)
+result_matrix.shape
 
 # %%
